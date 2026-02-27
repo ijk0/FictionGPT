@@ -28,25 +28,36 @@ function parseDotenv(filePath: string): Record<string, string> {
   }
 }
 
-let cachedEnv: Record<string, string | undefined> | null = null;
+let initialized = false;
 
 /**
- * Build the environment variables to pass to the Claude Agent SDK.
+ * Ensure .env.local values override process.env.
  *
- * The SDK spawns a child process that inherits system env by default.
- * Next.js loads .env.local but does NOT override existing system env vars.
- * We explicitly read .env.local and merge it on top of process.env so that
- * .env.local values always take precedence.
+ * The SDK spawns child processes and may also make direct API calls that
+ * read from process.env. Next.js loads .env.local but does NOT override
+ * existing system env vars. We explicitly read .env.local and write the
+ * values into process.env so they take precedence everywhere — both in
+ * the current process and in any child processes that inherit it.
  */
-export function getAgentEnv(): Record<string, string | undefined> {
-  if (cachedEnv) return cachedEnv;
+function ensureEnvLoaded(): void {
+  if (initialized) return;
+  initialized = true;
 
   const dotenvPath = resolve(process.cwd(), '.env.local');
   const localVars = parseDotenv(dotenvPath);
 
-  cachedEnv = {
-    ...process.env,
-    ...localVars,
-  };
-  return cachedEnv;
+  for (const [key, value] of Object.entries(localVars)) {
+    process.env[key] = value;
+  }
+}
+
+/**
+ * Build the environment variables to pass to the Claude Agent SDK.
+ *
+ * Also ensures process.env has been patched with .env.local values
+ * so that any SDK code reading process.env directly gets the right values.
+ */
+export function getAgentEnv(): Record<string, string | undefined> {
+  ensureEnvLoaded();
+  return process.env;
 }
