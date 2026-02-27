@@ -1,15 +1,22 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useProject } from "@/hooks/use-project";
-import { useSSEChat } from "@/hooks/use-sse-chat";
 import { SplitLayout } from "@/components/layout/split-layout";
 import { ChatPanel } from "@/components/chat/chat-panel";
 import { OutlineEditor } from "@/components/outline/outline-editor";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Loader2, Sparkles } from "lucide-react";
+import type { ChatMessage } from "@/hooks/use-sse-chat";
 import type { Outline } from "@/lib/types/project";
+
+const AGENT_TAG_RE = /<(canvas_update|outline_json|chapter_summary)>[\s\S]*?<\/\1>/g;
+const PARTIAL_TAG_RE = /<(canvas_update|outline_json|chapter_summary)>[\s\S]*$/;
+
+function stripAgentTags(text: string): string {
+  return text.replace(AGENT_TAG_RE, "").replace(PARTIAL_TAG_RE, "").trim();
+}
 
 export default function OutlinePage() {
   const params = useParams();
@@ -18,52 +25,92 @@ export default function OutlinePage() {
   const { project, outline, setOutline, updateProject } =
     useProject(projectId);
   const [generating, setGenerating] = useState(false);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [streamingContent, setStreamingContent] = useState("");
+  const abortRef = useRef<AbortController | null>(null);
 
-  const handleOutlineUpdate = useCallback(
-    (data: unknown) => {
-      setOutline(data as Outline);
-    },
-    [setOutline]
-  );
-
-  const {
-    messages,
-    isStreaming,
-    streamingContent,
-    sendMessage,
-    stopStreaming,
-  } = useSSEChat(`/api/outline/generate?projectId=${projectId}`, {
-    onOutlineUpdate: handleOutlineUpdate,
-  });
-
-  const handleGenerate = useCallback(() => {
+  const handleGenerate = useCallback(async () => {
     setGenerating(true);
-    // Trigger the outline generation via SSE
-    const evtSource = new EventSource(
-      `/api/outline/generate?projectId=${projectId}`
-    );
+    setStreamingContent("");
+
+    abortRef.current?.abort();
+    abortRef.current = new AbortController();
 
     let fullText = "";
 
-    evtSource.addEventListener("text", (e) => {
-      fullText += JSON.parse(e.data).content;
-    });
+    try {
+      const response = await fetch(
+        `/api/outline/generate?projectId=${projectId}`,
+        { signal: abortRef.current.signal }
+      );
 
-    evtSource.addEventListener("outline", (e) => {
-      const data = JSON.parse(e.data);
-      setOutline(data.outline);
-    });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
 
-    evtSource.addEventListener("done", () => {
-      evtSource.close();
+      const reader = response.body!.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let eventType = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (line.startsWith("event: ")) {
+            eventType = line.slice(7).trim();
+          } else if (line.startsWith("data: ") && eventType) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              switch (eventType) {
+                case "text":
+                  fullText += data.content;
+                  setStreamingContent(stripAgentTags(fullText));
+                  break;
+                case "outline":
+                  setOutline(data.outline);
+                  break;
+              }
+            } catch {
+              // ignore parse errors
+            }
+            eventType = "";
+          }
+        }
+      }
+
+      const cleanContent = stripAgentTags(fullText);
+      if (cleanContent) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: crypto.randomUUID(),
+            role: "assistant" as const,
+            content: cleanContent,
+            timestamp: new Date().toISOString(),
+          },
+        ]);
+      }
+    } catch (err) {
+      if ((err as Error).name !== "AbortError") {
+        console.error("Outline generation error:", err);
+      }
+    } finally {
       setGenerating(false);
-    });
-
-    evtSource.addEventListener("error", () => {
-      evtSource.close();
-      setGenerating(false);
-    });
+      setStreamingContent("");
+    }
   }, [projectId, setOutline]);
+
+  const stopGenerating = useCallback(() => {
+    abortRef.current?.abort();
+    setGenerating(false);
+    setStreamingContent("");
+  }, []);
 
   const canProceedToWrite = outline && outline.chapters.length > 0;
 
@@ -118,12 +165,12 @@ export default function OutlinePage() {
           left={
             <ChatPanel
               messages={messages}
-              isStreaming={isStreaming}
+              isStreaming={generating}
               streamingContent={streamingContent}
-              onSend={(msg) => sendMessage(msg, { projectId })}
-              onStop={stopStreaming}
+              onSend={() => {}}
+              onStop={stopGenerating}
               placeholder="关于大纲的想法..."
-              emptyMessage={'点击上方的"生成大纲"按钮，或与 AI 讨论大纲结构'}
+              emptyMessage={'点击上方的"生成大纲"按钮开始'}
             />
           }
           right={<OutlineEditor outline={outline} />}
