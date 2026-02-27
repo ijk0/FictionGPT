@@ -11,7 +11,7 @@ import { PenTool, Loader2 } from "lucide-react";
 export default function WritePage() {
   const params = useParams();
   const projectId = params.id as string;
-  const { outline } = useProject(projectId);
+  const { outline, loading } = useProject(projectId);
 
   const [selectedChapter, setSelectedChapter] = useState<number | null>(null);
   const [writtenChapters, setWrittenChapters] = useState<number[]>([]);
@@ -103,6 +103,14 @@ export default function WritePage() {
       }
     });
   }, [selectedChapter, projectId]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+        加载中...
+      </div>
+    );
+  }
 
   if (!outline) {
     return (
