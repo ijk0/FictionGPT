@@ -19,6 +19,9 @@ const STYLE_LABELS: Record<string, string> = {
   scifi: "科幻",
   fantasy: "奇幻",
   romance: "言情",
+  erotic: "情色",
+  dark: "暗黑",
+  harem: "后宫",
   custom: "自定义",
 };
 

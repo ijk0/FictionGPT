@@ -5,6 +5,9 @@ export type WritingStyle =
   | 'scifi'
   | 'fantasy'
   | 'romance'
+  | 'erotic'
+  | 'dark'
+  | 'harem'
   | 'custom';
 
 export type ProjectPhase =

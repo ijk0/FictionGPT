@@ -9,6 +9,9 @@ const STYLE_OPTIONS: { value: WritingStyle; label: string; desc: string }[] = [
   { value: "scifi", label: "科幻", desc: "科学设定严谨、想象丰富" },
   { value: "fantasy", label: "奇幻", desc: "宏大世界观、魔法体系" },
   { value: "romance", label: "言情", desc: "情感细腻、甜虐交织" },
+  { value: "erotic", label: "情色", desc: "大胆露骨、感官描写细腻" },
+  { value: "dark", label: "暗黑", desc: "阴暗题材、道德灰色地带" },
+  { value: "harem", label: "后宫", desc: "多线感情、众美环绕" },
   { value: "custom", label: "自定义", desc: "自定义写作风格" },
 ];
 
