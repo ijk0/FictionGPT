@@ -1,5 +1,6 @@
 import { query } from '@anthropic-ai/claude-agent-sdk';
 import { getWriterSystemPrompt } from './prompts/writer';
+import { getAgentEnv } from './env';
 import type { ChapterContext } from '@/lib/context/context-builder';
 import type { AgentYield } from './types';
 
@@ -83,6 +84,7 @@ export async function* runWriterAgent(
       permissionMode: 'bypassPermissions',
       allowDangerouslySkipPermissions: true,
       maxTurns: 1,
+      env: getAgentEnv(),
     },
   });
 

@@ -1,5 +1,6 @@
 import { query } from '@anthropic-ai/claude-agent-sdk';
 import { OUTLINE_SYSTEM_PROMPT } from './prompts/outline';
+import { getAgentEnv } from './env';
 import type { StoryCanvas } from '@/lib/types/project';
 import type { AgentYield } from './types';
 
@@ -52,6 +53,7 @@ export async function* runOutlineAgent(
       permissionMode: 'bypassPermissions',
       allowDangerouslySkipPermissions: true,
       maxTurns: 1,
+      env: getAgentEnv(),
     },
   });
 

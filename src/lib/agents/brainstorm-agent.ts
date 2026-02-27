@@ -1,5 +1,6 @@
 import { query } from '@anthropic-ai/claude-agent-sdk';
 import { BRAINSTORM_SYSTEM_PROMPT } from './prompts/brainstorm';
+import { getAgentEnv } from './env';
 import type { AgentYield } from './types';
 
 export interface BrainstormAgentParams {
@@ -36,6 +37,7 @@ export async function* runBrainstormAgent(
       permissionMode: 'bypassPermissions',
       allowDangerouslySkipPermissions: true,
       maxTurns: 1,
+      env: getAgentEnv(),
       ...(sessionId ? { resume: sessionId } : {}),
     },
   });
