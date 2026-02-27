@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useProject } from "@/hooks/use-project";
 import { useSSEChat } from "@/hooks/use-sse-chat";
@@ -30,9 +30,36 @@ export default function BrainstormPage() {
     streamingContent,
     sendMessage,
     stopStreaming,
+    loadMessages,
   } = useSSEChat(`/api/brainstorm/stream?projectId=${projectId}`, {
     onCanvasUpdate: handleCanvasUpdate,
   });
+
+  // Load persisted messages on mount
+  useEffect(() => {
+    fetch(`/api/projects/${projectId}/messages?phase=brainstorm`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.messages?.length > 0) {
+          loadMessages(data.messages);
+        }
+      })
+      .catch(() => {});
+  }, [projectId, loadMessages]);
+
+  // Persist messages after each completed exchange
+  const prevStreamingRef = useRef(false);
+  useEffect(() => {
+    // Save when streaming transitions from true → false (exchange completed)
+    if (prevStreamingRef.current && !isStreaming && messages.length > 0) {
+      fetch(`/api/projects/${projectId}/messages`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phase: "brainstorm", messages }),
+      }).catch(() => {});
+    }
+    prevStreamingRef.current = isStreaming;
+  }, [isStreaming, messages, projectId]);
 
   const handleSend = useCallback(
     (content: string) => {

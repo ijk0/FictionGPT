@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useProject } from "@/hooks/use-project";
 import { SplitLayout } from "@/components/layout/split-layout";
@@ -28,6 +28,18 @@ export default function OutlinePage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [streamingContent, setStreamingContent] = useState("");
   const abortRef = useRef<AbortController | null>(null);
+
+  // Load persisted messages on mount
+  useEffect(() => {
+    fetch(`/api/projects/${projectId}/messages?phase=outline`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.messages?.length > 0) {
+          setMessages(data.messages);
+        }
+      })
+      .catch(() => {});
+  }, [projectId]);
 
   const handleGenerate = useCallback(async () => {
     setGenerating(true);
@@ -86,15 +98,22 @@ export default function OutlinePage() {
 
       const cleanContent = stripAgentTags(fullText);
       if (cleanContent) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: crypto.randomUUID(),
-            role: "assistant" as const,
-            content: cleanContent,
-            timestamp: new Date().toISOString(),
-          },
-        ]);
+        const newMsg: ChatMessage = {
+          id: crypto.randomUUID(),
+          role: "assistant" as const,
+          content: cleanContent,
+          timestamp: new Date().toISOString(),
+        };
+        setMessages((prev) => {
+          const updated = [...prev, newMsg];
+          // Persist messages
+          fetch(`/api/projects/${projectId}/messages`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ phase: "outline", messages: updated }),
+          }).catch(() => {});
+          return updated;
+        });
       }
     } catch (err) {
       if ((err as Error).name !== "AbortError") {

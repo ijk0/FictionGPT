@@ -89,7 +89,7 @@ export async function* runWriterAgent(
     },
   });
 
-  let lastTextLength = 0;
+  let streamedViaDeltas = false;
 
   for await (const sdkMessage of queryIterator) {
     switch (sdkMessage.type) {
@@ -106,22 +106,24 @@ export async function* runWriterAgent(
           event.type === 'content_block_delta' &&
           event.delta.type === 'text_delta'
         ) {
+          streamedViaDeltas = true;
           yield { type: 'text', content: event.delta.text };
         }
         break;
       }
 
       case 'assistant': {
-        const contentBlocks = sdkMessage.message.content as Array<{ type: string; text?: string }>;
-        const fullText = contentBlocks
-          .filter((block) => block.type === 'text' && typeof block.text === 'string')
-          .map((block) => block.text as string)
-          .join('');
+        if (!streamedViaDeltas) {
+          const contentBlocks = sdkMessage.message.content as Array<{ type: string; text?: string }>;
+          const fullText = contentBlocks
+            .filter((block) => block.type === 'text' && typeof block.text === 'string')
+            .map((block) => block.text as string)
+            .join('');
 
-        if (fullText.length > 0 && lastTextLength === 0) {
-          yield { type: 'text', content: fullText };
+          if (fullText.length > 0) {
+            yield { type: 'text', content: fullText };
+          }
         }
-        lastTextLength = fullText.length;
         break;
       }
 

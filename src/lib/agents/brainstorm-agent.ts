@@ -43,7 +43,7 @@ export async function* runBrainstormAgent(
     },
   });
 
-  let lastTextLength = 0;
+  let streamedViaDeltas = false;
 
   for await (const sdkMessage of queryIterator) {
     switch (sdkMessage.type) {
@@ -55,32 +55,30 @@ export async function* runBrainstormAgent(
       }
 
       case 'stream_event': {
-        // Handle streaming text deltas from partial messages
         const event = sdkMessage.event;
         if (
           event.type === 'content_block_delta' &&
           event.delta.type === 'text_delta'
         ) {
+          streamedViaDeltas = true;
           yield { type: 'text', content: event.delta.text };
         }
         break;
       }
 
       case 'assistant': {
-        // When we get a complete assistant message, extract any remaining text
-        // that might not have been streamed via partial messages.
-        const contentBlocks = sdkMessage.message.content as Array<{ type: string; text?: string }>;
-        const fullText = contentBlocks
-          .filter((block) => block.type === 'text' && typeof block.text === 'string')
-          .map((block) => block.text as string)
-          .join('');
+        // Only yield the full text if we didn't already stream it via deltas
+        if (!streamedViaDeltas) {
+          const contentBlocks = sdkMessage.message.content as Array<{ type: string; text?: string }>;
+          const fullText = contentBlocks
+            .filter((block) => block.type === 'text' && typeof block.text === 'string')
+            .map((block) => block.text as string)
+            .join('');
 
-        // If includePartialMessages is on, we already streamed the text.
-        // Only yield the full text if we didn't get partial messages for it.
-        if (fullText.length > 0 && lastTextLength === 0) {
-          yield { type: 'text', content: fullText };
+          if (fullText.length > 0) {
+            yield { type: 'text', content: fullText };
+          }
         }
-        lastTextLength = fullText.length;
         break;
       }
 
