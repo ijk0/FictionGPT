@@ -17,6 +17,13 @@ interface SSECallbacks {
   onDone?: () => void;
 }
 
+const AGENT_TAG_RE = /<(canvas_update|outline_json|chapter_summary)>[\s\S]*?<\/\1>/g;
+const PARTIAL_TAG_RE = /<(canvas_update|outline_json|chapter_summary)>[\s\S]*$/;
+
+function stripAgentTags(text: string): string {
+  return text.replace(AGENT_TAG_RE, "").replace(PARTIAL_TAG_RE, "").trim();
+}
+
 export function useSSEChat(endpoint: string, callbacks?: SSECallbacks) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -46,12 +53,15 @@ export function useSSEChat(endpoint: string, callbacks?: SSECallbacks) {
       abortRef.current = new AbortController();
 
       try {
-        const params = new URLSearchParams({
-          message: content,
-          ...extraParams,
-        });
+        const url = new URL(endpoint, window.location.origin);
+        url.searchParams.set("message", content);
+        if (extraParams) {
+          for (const [key, value] of Object.entries(extraParams)) {
+            url.searchParams.set(key, value);
+          }
+        }
 
-        const response = await fetch(`${endpoint}?${params}`, {
+        const response = await fetch(url, {
           signal: abortRef.current.signal,
         });
 
@@ -83,7 +93,7 @@ export function useSSEChat(endpoint: string, callbacks?: SSECallbacks) {
                 switch (eventType) {
                   case "text":
                     fullContent += data.content;
-                    setStreamingContent(fullContent);
+                    setStreamingContent(stripAgentTags(fullContent));
                     break;
                   case "canvas":
                     callbacks?.onCanvasUpdate?.(data.canvas);
@@ -112,11 +122,12 @@ export function useSSEChat(endpoint: string, callbacks?: SSECallbacks) {
           }
         }
 
-        if (fullContent) {
+        const cleanContent = stripAgentTags(fullContent);
+        if (cleanContent) {
           const assistantMessage: ChatMessage = {
             id: crypto.randomUUID(),
             role: "assistant",
-            content: fullContent,
+            content: cleanContent,
             timestamp: new Date().toISOString(),
           };
           setMessages((prev) => [...prev, assistantMessage]);

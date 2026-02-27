@@ -1,5 +1,6 @@
 "use client";
 
+import Markdown from "react-markdown";
 import { cn } from "@/lib/utils";
 import { User, Bot } from "lucide-react";
 
@@ -30,13 +31,17 @@ export function MessageBubble({
       </div>
       <div
         className={cn(
-          "max-w-[80%] rounded-lg px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap",
+          "max-w-[80%] rounded-lg px-4 py-2.5 text-sm leading-relaxed",
           isUser
-            ? "bg-primary text-primary-foreground"
-            : "bg-muted text-foreground"
+            ? "bg-primary text-primary-foreground whitespace-pre-wrap"
+            : "bg-muted text-foreground prose prose-sm prose-neutral dark:prose-invert max-w-none"
         )}
       >
-        {content}
+        {isUser ? (
+          content
+        ) : (
+          <Markdown>{content}</Markdown>
+        )}
         {isStreaming && (
           <span className="inline-block w-1.5 h-4 ml-0.5 bg-current animate-pulse" />
         )}
