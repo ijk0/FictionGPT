@@ -24,6 +24,14 @@ FictionGPT is an AI-powered novel creation platform (Chinese language UI) built 
 3. **Write** (`/project/[id]/write`) — Sequential chapter generation with streaming. Uses a sliding window of last 3 chapter summaries for context continuity. Stateless.
 4. **Project Management** (`/`) — Create/list/manage projects with writing style selection.
 
+### Agent Models
+
+| Agent | Model | Rationale |
+|---|---|---|
+| Brainstorm | `claude-opus-4-6` | Creative ideation needs strongest reasoning |
+| Outline | `claude-opus-4-6` | Structural planning needs strong reasoning |
+| Writer | `claude-sonnet-4-6` | Long-form prose generation, good balance of quality and speed |
+
 ### Key Directories
 
 - `src/lib/agents/` — Agent implementations (brainstorm, outline, writer) as async generators yielding `AgentYield` events
@@ -56,6 +64,7 @@ Pages use a split-layout: left panel for chat/interaction, right panel for canva
 
 ## Conventions
 
+- Environment: `ANTHROPIC_BASE_URL` and `ANTHROPIC_AUTH_TOKEN` configured in `.env.local`; `src/lib/agents/env.ts` ensures `.env.local` overrides system env vars for the SDK
 - Path alias: `@/*` maps to `./src/*`
 - All user-facing text and agent prompts are in Chinese
 - Agents wrap structured output in XML tags for reliable extraction from streaming text

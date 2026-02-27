@@ -45,6 +45,7 @@ export async function* runOutlineAgent(
   const queryIterator = query({
     prompt,
     options: {
+      model: 'claude-opus-4-6',
       systemPrompt: OUTLINE_SYSTEM_PROMPT,
       tools: [],
       allowedTools: [],

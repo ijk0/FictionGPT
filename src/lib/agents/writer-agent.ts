@@ -76,6 +76,7 @@ export async function* runWriterAgent(
   const queryIterator = query({
     prompt,
     options: {
+      model: 'claude-sonnet-4-6',
       systemPrompt,
       tools: [],
       allowedTools: [],

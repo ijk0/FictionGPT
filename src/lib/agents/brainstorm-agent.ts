@@ -29,6 +29,7 @@ export async function* runBrainstormAgent(
   const queryIterator = query({
     prompt: message,
     options: {
+      model: 'claude-opus-4-6',
       systemPrompt: BRAINSTORM_SYSTEM_PROMPT,
       tools: [],
       allowedTools: [],
