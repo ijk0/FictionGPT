@@ -1,6 +1,7 @@
 "use client";
 
 import Markdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
 import { User, Bot } from "lucide-react";
 
@@ -40,7 +41,7 @@ export function MessageBubble({
         {isUser ? (
           content
         ) : (
-          <Markdown>{content}</Markdown>
+          <Markdown remarkPlugins={[remarkGfm]}>{content}</Markdown>
         )}
         {isStreaming && (
           <span className="inline-block w-1.5 h-4 ml-0.5 bg-current animate-pulse" />
