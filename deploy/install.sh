@@ -2,9 +2,11 @@
 #
 # FictionGPT Installation Script
 # FictionGPT 安装脚本
-# Usage: curl -sSL https://raw.githubusercontent.com/ijk0/FictionGPT/main/deploy/install.sh | bash
+# Usage: curl -sSL https://raw.githubusercontent.com/ijk0/FictionGPT/main/deploy/install.sh | sudo bash
 # Background (recommended for low-memory VPS):
-#   nohup bash -c 'curl -sSL https://raw.githubusercontent.com/ijk0/FictionGPT/main/deploy/install.sh | bash -s -- -y' > /tmp/fictiongpt-install.log 2>&1 &
+#   AUTH_TOKEN=xxx ANTHROPIC_BASE_URL=xxx ANTHROPIC_AUTH_TOKEN=xxx \
+#     bash -c 'curl -sSL https://raw.githubusercontent.com/ijk0/FictionGPT/main/deploy/install.sh | sudo -E bash' \
+#     > /tmp/fictiongpt-install.log 2>&1 & disown
 #   tail -f /tmp/fictiongpt-install.log
 #
 
@@ -128,11 +130,21 @@ validate_port() {
     return 1
 }
 
-# Check if running as root
+# Ensure root privileges (re-exec with sudo if needed)
 check_root() {
     if [ "$(id -u)" -ne 0 ]; then
-        print_error "${MSG[run_as_root]}"
-        exit 1
+        if command -v sudo &> /dev/null; then
+            if [ -f "$0" ]; then
+                print_info "需要 root 权限，使用 sudo 提权..."
+                exec sudo -E bash "$0" "${ORIG_ARGS[@]}"
+            else
+                print_error "通过管道运行时请使用 sudo: curl ... | sudo bash"
+                exit 1
+            fi
+        else
+            print_error "${MSG[run_as_root]}"
+            exit 1
+        fi
     fi
 }
 
@@ -662,6 +674,9 @@ show_help() {
 
 # Main
 main() {
+    # Save original args for sudo re-exec
+    ORIG_ARGS=("$@")
+
     # Parse flags
     local positional_args=()
 
