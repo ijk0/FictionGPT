@@ -22,7 +22,7 @@ interface StyleSelectorProps {
 
 export function StyleSelector({ value, onChange }: StyleSelectorProps) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+    <div className="grid grid-cols-2 gap-2">
       {STYLE_OPTIONS.map((option) => (
         <button
           key={option.value}
