@@ -26,11 +26,11 @@ SERVICE_USER="fictiongpt"
 DATA_DIR="/opt/fictiongpt/data"
 NODE_VERSION="20"
 
-# Server configuration (will be set by user)
-SERVER_PORT="3001"
-AUTH_TOKEN=""
-ANTHROPIC_BASE_URL=""
-ANTHROPIC_AUTH_TOKEN=""
+# Server configuration: env vars > existing .env.local > defaults
+SERVER_PORT="${SERVER_PORT:-3001}"
+AUTH_TOKEN="${AUTH_TOKEN:-}"
+ANTHROPIC_BASE_URL="${ANTHROPIC_BASE_URL:-}"
+ANTHROPIC_AUTH_TOKEN="${ANTHROPIC_AUTH_TOKEN:-}"
 
 # ============================================================
 # Messages
@@ -203,13 +203,33 @@ setup_node() {
     print_success "${MSG[node_installed]}: $(node -v)"
 }
 
+# Load existing .env.local values as fallback
+load_existing_env() {
+    local env_file="$INSTALL_DIR/.env.local"
+    if [ -f "$env_file" ]; then
+        print_info "检测到已有配置文件，读取现有配置..."
+        local val
+        val=$(grep -E '^ANTHROPIC_BASE_URL=' "$env_file" 2>/dev/null | cut -d= -f2- || true)
+        [ -z "$ANTHROPIC_BASE_URL" ] && [ -n "$val" ] && ANTHROPIC_BASE_URL="$val"
+        val=$(grep -E '^ANTHROPIC_AUTH_TOKEN=' "$env_file" 2>/dev/null | cut -d= -f2- || true)
+        [ -z "$ANTHROPIC_AUTH_TOKEN" ] && [ -n "$val" ] && ANTHROPIC_AUTH_TOKEN="$val"
+        val=$(grep -E '^AUTH_TOKEN=' "$env_file" 2>/dev/null | cut -d= -f2- || true)
+        [ -z "$AUTH_TOKEN" ] && [ -n "$val" ] && AUTH_TOKEN="$val"
+    fi
+}
+
 # Configure server settings
 configure_server() {
+    load_existing_env
+
     if ! is_interactive; then
+        # Non-interactive: use env vars / existing config / defaults
         if [ -z "$AUTH_TOKEN" ]; then
-            AUTH_TOKEN="changeme"
+            print_error "非交互模式下必须设置 AUTH_TOKEN 环境变量（或已有 .env.local）"
+            print_info "用法: AUTH_TOKEN=xxx ANTHROPIC_BASE_URL=xxx ANTHROPIC_AUTH_TOKEN=xxx bash install.sh"
+            exit 1
         fi
-        print_info "使用默认配置: 端口 ${SERVER_PORT}"
+        print_info "非交互模式: 端口 ${SERVER_PORT} | 令牌 ${AUTH_TOKEN:0:4}****"
         return
     fi
 
