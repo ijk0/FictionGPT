@@ -289,9 +289,61 @@ clone_or_update_repo() {
     fi
 }
 
+# Ensure swap exists (critical for low-memory VPS, e.g. 1GB)
+ensure_swap() {
+    local total_mem_kb
+    total_mem_kb=$(grep MemTotal /proc/meminfo | awk '{print $2}')
+    local total_mem_mb=$((total_mem_kb / 1024))
+
+    # Only create swap if total RAM <= 2GB and no swap exists
+    if [ "$total_mem_mb" -le 2048 ]; then
+        local current_swap_kb
+        current_swap_kb=$(grep SwapTotal /proc/meminfo | awk '{print $2}')
+
+        if [ "$current_swap_kb" -lt 1024 ]; then
+            local swap_size_mb=$((2048 - total_mem_mb + 512))
+            [ "$swap_size_mb" -lt 1024 ] && swap_size_mb=1024
+
+            print_info "内存不足 (${total_mem_mb}MB)，正在创建 ${swap_size_mb}MB 交换文件..."
+
+            local swapfile="/swapfile"
+            if [ ! -f "$swapfile" ]; then
+                dd if=/dev/zero of="$swapfile" bs=1M count="$swap_size_mb" status=progress
+                chmod 600 "$swapfile"
+                mkswap "$swapfile"
+            fi
+            swapon "$swapfile" 2>/dev/null || true
+
+            # Persist across reboots
+            if ! grep -q "$swapfile" /etc/fstab 2>/dev/null; then
+                echo "$swapfile none swap sw 0 0" >> /etc/fstab
+            fi
+
+            print_success "交换文件已创建并启用 (${swap_size_mb}MB)"
+        else
+            print_info "交换空间已存在 ($((current_swap_kb / 1024))MB)"
+        fi
+    fi
+}
+
 # Install npm dependencies and build
 build_project() {
     cd "$INSTALL_DIR"
+
+    # Ensure enough memory for build
+    ensure_swap
+
+    # Limit Node.js heap for low-memory environments
+    local total_mem_kb
+    total_mem_kb=$(grep MemTotal /proc/meminfo | awk '{print $2}')
+    local total_mem_mb=$((total_mem_kb / 1024))
+    if [ "$total_mem_mb" -le 2048 ]; then
+        local heap_size=$((total_mem_mb / 2))
+        [ "$heap_size" -lt 256 ] && heap_size=256
+        [ "$heap_size" -gt 512 ] && heap_size=512
+        export NODE_OPTIONS="--max-old-space-size=${heap_size}"
+        print_info "低内存模式: Node.js 堆限制为 ${heap_size}MB"
+    fi
 
     print_info "${MSG[installing_deps]}"
     npm ci --production=false
@@ -300,6 +352,9 @@ build_project() {
     print_info "${MSG[building]}"
     npm run build
     print_success "${MSG[build_complete]}"
+
+    # Clean up NODE_OPTIONS
+    unset NODE_OPTIONS
 }
 
 # Setup directories and permissions
