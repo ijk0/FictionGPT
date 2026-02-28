@@ -3,6 +3,9 @@
 # FictionGPT Installation Script
 # FictionGPT 安装脚本
 # Usage: curl -sSL https://raw.githubusercontent.com/ijk0/FictionGPT/main/deploy/install.sh | bash
+# Background (recommended for low-memory VPS):
+#   nohup bash -c 'curl -sSL https://raw.githubusercontent.com/ijk0/FictionGPT/main/deploy/install.sh | bash -s -- -y' > /tmp/fictiongpt-install.log 2>&1 &
+#   tail -f /tmp/fictiongpt-install.log
 #
 
 set -e
@@ -300,19 +303,24 @@ ensure_swap() {
         local current_swap_kb
         current_swap_kb=$(grep SwapTotal /proc/meminfo | awk '{print $2}')
 
-        if [ "$current_swap_kb" -lt 1024 ]; then
-            local swap_size_mb=$((2048 - total_mem_mb + 512))
+        local current_swap_mb=$((current_swap_kb / 1024))
+
+        if [ "$current_swap_mb" -lt 1024 ]; then
+            local swap_size_mb=$((2048 - total_mem_mb - current_swap_mb + 512))
             [ "$swap_size_mb" -lt 1024 ] && swap_size_mb=1024
 
-            print_info "内存不足 (${total_mem_mb}MB)，正在创建 ${swap_size_mb}MB 交换文件..."
+            print_info "内存不足 (RAM: ${total_mem_mb}MB, Swap: ${current_swap_mb}MB)，正在创建 ${swap_size_mb}MB 交换文件..."
 
             local swapfile="/swapfile"
-            if [ ! -f "$swapfile" ]; then
-                dd if=/dev/zero of="$swapfile" bs=1M count="$swap_size_mb" status=progress
-                chmod 600 "$swapfile"
-                mkswap "$swapfile"
+            # Disable existing small swap if we're replacing it
+            if [ -f "$swapfile" ]; then
+                swapoff "$swapfile" 2>/dev/null || true
+                rm -f "$swapfile"
             fi
-            swapon "$swapfile" 2>/dev/null || true
+            dd if=/dev/zero of="$swapfile" bs=1M count="$swap_size_mb" status=progress
+            chmod 600 "$swapfile"
+            mkswap "$swapfile"
+            swapon "$swapfile"
 
             # Persist across reboots
             if ! grep -q "$swapfile" /etc/fstab 2>/dev/null; then
@@ -321,7 +329,7 @@ ensure_swap() {
 
             print_success "交换文件已创建并启用 (${swap_size_mb}MB)"
         else
-            print_info "交换空间已存在 ($((current_swap_kb / 1024))MB)"
+            print_info "交换空间已充足 (${current_swap_mb}MB)"
         fi
     fi
 }
