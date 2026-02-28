@@ -227,6 +227,8 @@ load_existing_env() {
         [ -z "$ANTHROPIC_AUTH_TOKEN" ] && [ -n "$val" ] && ANTHROPIC_AUTH_TOKEN="$val"
         val=$(grep -E '^AUTH_TOKEN=' "$env_file" 2>/dev/null | cut -d= -f2- || true)
         [ -z "$AUTH_TOKEN" ] && [ -n "$val" ] && AUTH_TOKEN="$val"
+        val=$(grep -E '^PORT=' "$env_file" 2>/dev/null | cut -d= -f2- || true)
+        [ "$SERVER_PORT" = "3001" ] && [ -n "$val" ] && SERVER_PORT="$val"
     fi
 }
 
@@ -430,6 +432,7 @@ write_env() {
 ANTHROPIC_BASE_URL=${ANTHROPIC_BASE_URL}
 ANTHROPIC_AUTH_TOKEN=${ANTHROPIC_AUTH_TOKEN}
 AUTH_TOKEN=${AUTH_TOKEN}
+PORT=${SERVER_PORT}
 EOF
 
     chown "$SERVICE_USER:$SERVICE_USER" "$env_file"
