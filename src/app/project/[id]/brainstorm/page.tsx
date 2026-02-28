@@ -107,6 +107,8 @@ export default function BrainstormPage() {
             />
           }
           right={<StoryCanvas canvas={canvas} />}
+          leftLabel="对话"
+          rightLabel="故事画布"
         />
       </div>
     </div>

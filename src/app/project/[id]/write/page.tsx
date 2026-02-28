@@ -6,7 +6,7 @@ import { useProject } from "@/hooks/use-project";
 import { ChapterList } from "@/components/writing/chapter-list";
 import { ChapterEditor } from "@/components/writing/chapter-editor";
 import { Button } from "@/components/ui/button";
-import { PenTool, Loader2 } from "lucide-react";
+import { PenTool, Loader2, ChevronDown } from "lucide-react";
 
 export default function WritePage() {
   const params = useParams();
@@ -18,6 +18,7 @@ export default function WritePage() {
   const [chapterContent, setChapterContent] = useState<string | null>(null);
   const [isWriting, setIsWriting] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
+  const [showChapterList, setShowChapterList] = useState(false);
 
   // Load list of written chapters
   useEffect(() => {
@@ -124,6 +125,11 @@ export default function WritePage() {
     (c) => c.number === selectedChapter
   );
 
+  const handleMobileSelect = (num: number) => {
+    setSelectedChapter(num);
+    setShowChapterList(false);
+  };
+
   return (
     <div className="h-full flex flex-col">
       <div className="border-b border-border px-4 py-2 flex items-center justify-between bg-muted/30">
@@ -145,8 +151,37 @@ export default function WritePage() {
           </Button>
         )}
       </div>
+
+      {/* Mobile chapter selector */}
+      <div className="md:hidden border-b border-border">
+        <button
+          onClick={() => setShowChapterList(!showChapterList)}
+          className="w-full px-4 py-2.5 flex items-center justify-between text-sm"
+        >
+          <span className="font-medium">
+            {selectedChapter
+              ? `第 ${String(selectedChapter).padStart(2, "0")} 章 · ${currentChapter?.title || ""}`
+              : "选择章节"}
+          </span>
+          <ChevronDown
+            className={`h-4 w-4 text-muted-foreground transition-transform ${showChapterList ? "rotate-180" : ""}`}
+          />
+        </button>
+        {showChapterList && (
+          <div className="max-h-64 overflow-auto border-t border-border">
+            <ChapterList
+              chapters={outline.chapters}
+              writtenChapters={writtenChapters}
+              selectedChapter={selectedChapter}
+              onSelect={handleMobileSelect}
+            />
+          </div>
+        )}
+      </div>
+
       <div className="flex-1 flex overflow-hidden">
-        <div className="w-64 border-r border-border shrink-0">
+        {/* Desktop chapter sidebar */}
+        <div className="hidden md:block w-64 border-r border-border shrink-0">
           <ChapterList
             chapters={outline.chapters}
             writtenChapters={writtenChapters}

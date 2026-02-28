@@ -51,7 +51,7 @@ export default function HomePage() {
   return (
     <div className="h-screen flex flex-col">
       <Header />
-      <main className="flex-1 overflow-auto p-6">
+      <main className="flex-1 overflow-auto p-4 md:p-6">
         <div className="max-w-4xl mx-auto">
           <div className="flex items-center justify-between mb-6">
             <h1 className="text-2xl font-bold">我的作品</h1>

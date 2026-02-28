@@ -193,6 +193,8 @@ export default function OutlinePage() {
             />
           }
           right={<OutlineEditor outline={outline} />}
+          leftLabel="对话"
+          rightLabel="章节大纲"
         />
       </div>
     </div>

@@ -28,7 +28,7 @@ export default function ProjectLayout({
   return (
     <div className="h-screen flex flex-col">
       <Header projectTitle={project?.title} />
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden pb-12 md:pb-0">
         <ProjectSidebar
           projectId={projectId}
           status={project?.status || "brainstorm"}
